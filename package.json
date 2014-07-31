@@ -1,0 +1,24 @@
+{
+    "name": "stockholm",
+    "version": "0.0.1",
+    "description": "Prototype for ikea",
+    "main": "src/main.coffee",
+    "repository": {
+        "type": "git",
+        "url": ""
+    },
+    "devDependencies": {
+        "browserify": "~4.1.6",
+        "watchify": "~0.10.2",
+        "gl-matrix": "2.1.0"
+
+    },
+    "author": "Nikki Koole",
+    "contributors": [
+		{
+            "name": "Nikki Koole",
+            "email": "nikki@floorplanner.com"
+        }
+    ],
+    "license": "proprietary"
+}

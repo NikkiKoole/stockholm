@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>main.coffee</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+  <link rel="stylesheet" media="all" href="docco.css" />
+</head>
+<body>
+  <div id="container">
+    <div id="background"></div>
+    
+      <ul id="jump_to">
+        <li>
+          <a class="large" href="javascript:void(0);">Jump To &hellip;</a>
+          <a class="small" href="javascript:void(0);">+</a>
+          <div id="jump_wrapper">
+          <div id="jump_page">
+            
+              
+              <a class="source" href="cleaner.html">
+                cleaner.coffee
+              </a>
+            
+              
+              <a class="source" href="edge.html">
+                edge.coffee
+              </a>
+            
+              
+              <a class="source" href="floorplan.html">
+                floorplan.coffee
+              </a>
+            
+              
+              <a class="source" href="main.html">
+                main.coffee
+              </a>
+            
+              
+              <a class="source" href="smarter.html">
+                smarter.coffee
+              </a>
+            
+              
+              <a class="source" href="test.html">
+                test.coffee
+              </a>
+            
+          </div>
+        </li>
+      </ul>
+    
+    <ul class="sections">
+        
+          <li id="title">
+              <div class="annotation">
+                  <h1>main.coffee</h1>
+              </div>
+          </li>
+        
+        
+        
+        <li id="section-1">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-1">&#182;</a>
+              </div>
+              
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>{vec2} = require <span class="string">'gl-matrix'</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-2">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-2">&#182;</a>
+              </div>
+              <p>How does it function
+On screen you see a bunch of nicely connected walls
+that is one PIXI.Graphics object with alot of lineTo stuff.
+The corners of the walls are respresented in a dictionary keyed on their position.
+When the user drags a corner he is actually dragging an Interactive DisplayObject
+on each drag event the key is changed too, before that though you&#39;ll have to look up all walls and see which are attached</p>
+<p><do this earlier it never changes>
+per corner you have two walls attached, you need to know which endpoints of the both walls we share coord with</p>
+<p>The interactive layer sits on top of the drawn walls,
+it has interactive polygons in DisplayObjects for walls
+and interactive Circles in DisplayObject for corners
+it needs to talk very directly to the drawn walls which is offcourse dumb.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="function"><span class="title">polyToPIXIPoly</span></span> = (arr)-&gt;
+    pixiArr = []
+    <span class="keyword">for</span> elem,i <span class="keyword">in</span> arr <span class="keyword">by</span> <span class="number">2</span>
+        pixiArr.push <span class="keyword">new</span> PIXI.Point(arr[i],arr[i+<span class="number">1</span>])
+    <span class="keyword">new</span> PIXI.Polygon(pixiArr)
+    
+<span class="class"><span class="keyword">class</span> <span class="title">InteractiveLayer</span> <span class="keyword">extends</span> <span class="title">PIXI</span>.<span class="title">DisplayObjectContainer</span></span>
+    constructor : (<span class="property">@walls</span>) -&gt;
+        <span class="keyword">super</span>()
+        <span class="property">@corners</span> = {}
+        <span class="property">@container</span> = <span class="keyword">new</span> PIXI.Graphics()
+        <span class="property">@cornerLayer</span> = <span class="keyword">new</span> PIXI.DisplayObjectContainer()
+        <span class="property">@wallOverlayLayer</span> = <span class="keyword">new</span> PIXI.Graphics()
+        <span class="property">@container</span>.addChild <span class="property">@wallOverlayLayer</span>
+        <span class="property">@container</span>.addChild <span class="property">@cornerLayer</span>
+        
+    addCorner: (x,y) -&gt;
+        <span class="keyword">if</span> <span class="property">@corners</span>[<span class="string">"<span class="subst">#{x}</span>,<span class="subst">#{y}</span>"</span>]
+          <span class="keyword">return</span> <span class="property">@corners</span>[<span class="string">"<span class="subst">#{x}</span>,<span class="subst">#{y}</span>"</span>]
+        <span class="keyword">else</span>
+          <span class="property">@corners</span>[<span class="string">"<span class="subst">#{x}</span>,<span class="subst">#{y}</span>"</span>] = <span class="keyword">new</span> WallCorner(x,y)
+          <span class="keyword">return</span> <span class="property">@corners</span>[<span class="string">"<span class="subst">#{x}</span>,<span class="subst">#{y}</span>"</span>]
+          
+    getCorners : -&gt;
+        v <span class="keyword">for</span> k, v <span class="keyword">of</span> <span class="property">@corners</span>
+    
+
+    addWall : (wall) -&gt;
+        corner1 = <span class="property">@addCorner</span>(wall.A[<span class="number">0</span>],wall.A[<span class="number">1</span>])
+        corner2 = <span class="property">@addCorner</span>(wall.B[<span class="number">0</span>],wall.B[<span class="number">1</span>])
+        corner1.addEdge wall
+        corner2.addEdge wall
+
+    renderWallOverlays: ()-&gt;
+        <span class="property">@wallOverlayLayer</span>.clear()
+        <span class="property">@wallOverlayLayer</span>.beginFill(<span class="number">0xffff00</span>, <span class="number">0.5</span>)
+        <span class="property">@wallOverlayLayer</span>.lineStyle(<span class="number">2</span>,<span class="number">0x000000</span>,<span class="number">0.5</span>)
+
+        <span class="keyword">for</span> w <span class="keyword">in</span> <span class="property">@walls</span>
+            <span class="property">@wallOverlayLayer</span>.drawPath(w.polygon())
+
+    wallOverlay: (elem,id) -&gt;
+        elem.interactive = <span class="literal">true</span>
+        elem.<span class="function"><span class="title">mouseover</span></span> = =&gt; console.log <span class="string">'hiya wall'</span>,id
+        
+        elem.<span class="function"><span class="title">mousedown</span></span> = (data) =&gt;
+            <span class="property">@hasReleased</span> = <span class="literal">false</span>
+            console.log <span class="string">'down'</span>,id
+            elem.isDowned = <span class="literal">true</span>
+            elem.dx = elem.position.x - data.originalEvent.clientX
+            elem.dy = elem.position.y - data.originalEvent.clientY
+        elem.mouseup = elem.<span class="function"><span class="title">mouseupoutside</span></span> = =&gt;
+            elem.isDowned = <span class="literal">false</span>
+        elem.<span class="function"><span class="title">mousemove</span></span> = (data) =&gt;
+            <span class="keyword">if</span> elem.isDowned
+                newX = data.originalEvent.clientX + elem.dx
+                newY = data.originalEvent.clientY + elem.dy
+                diffx = newX - elem.position.x
+                diffy = newY - elem.position.y</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-3">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-3">&#182;</a>
+              </div>
+              <p>console.log elem.wall</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-4">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-4">&#182;</a>
+              </div>
+              <p>@corners[]</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>                corner1 = <span class="property">@corners</span>[<span class="string">"<span class="subst">#{elem.wall.A[<span class="number">0</span>]}</span>,<span class="subst">#{elem.wall.A[<span class="number">1</span>]}</span>"</span>]
+                corner2 = <span class="property">@corners</span>[<span class="string">"<span class="subst">#{elem.wall.B[<span class="number">0</span>]}</span>,<span class="subst">#{elem.wall.B[<span class="number">1</span>]}</span>"</span>]</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <p>@updateCornerPostion
+console.log corner1,corner2
+console.log corner1.edges
+console.log elem</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-6">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-6">&#182;</a>
+              </div>
+              <p>for wall in corner1.edges
+    console.log wall.A[0],corner1.x,corner1.y
+    if wall.A[0] is corner1.x and wall.A[1] is corner1.y
+        wall.A[0] += diffx
+        wall.A[1] += diffy
+    if wall.B[0] is corner1.x and wall.B[1] is corner1.y
+        wall.B[0] += diffx
+        wall.B[1] += diffy
+for wall in corner2.edges
+    if wall.A[0] is corner2.x and wall.A[1] is corner2.y
+        wall.A[0] += diffx
+        wall.A[1] += diffy
+    if wall.B[0] is corner2.x and wall.B[1] is corner2.y
+        wall.B[0] += diffx
+        wall.B[1] += diffy
+elem.position.x = newX
+elem.position.y = newY</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-7">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-7">&#182;</a>
+              </div>
+              <p>get all walls that use any of these 
+console.log diffx,diffy</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>                elem.wall.A[<span class="number">0</span>]+= diffx
+                elem.wall.A[<span class="number">1</span>]+= diffy
+                elem.wall.B[<span class="number">0</span>]+= diffx
+                elem.wall.B[<span class="number">1</span>]+= diffy
+                <span class="property">@renderConnectedWalls</span>()
+                <span class="property">@renderWallOverlays</span>()</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-8">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-8">&#182;</a>
+              </div>
+              <p>@updateWallOverlays()</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>                
+    updateWallOverlays:()-&gt;
+        <span class="keyword">for</span> w,i <span class="keyword">in</span> <span class="property">@walls</span>
+            canvas = <span class="keyword">new</span> PIXI.Graphics()
+            canvas.beginFill(<span class="number">0xaaaaff</span>)
+            canvas.drawPath(w.polygon())
+            elem = <span class="property">@wallOverlayLayer</span>.children[i]
+            elem.removeChildAt(<span class="number">0</span>)
+            elem.addChild canvas
+            elem.hitArea = polyToPIXIPoly w.polygon()
+            elem.position = <span class="keyword">new</span> PIXI.Point(<span class="number">0</span>,<span class="number">0</span>)
+            
+    createInteractiveWallOverlays: ()-&gt;
+        counter = <span class="number">0</span>
+        <span class="keyword">for</span> w <span class="keyword">in</span> <span class="property">@walls</span>
+            elem = <span class="keyword">new</span> PIXI.DisplayObjectContainer()
+            elem.wall = w
+            canvas = <span class="keyword">new</span> PIXI.Graphics()
+            canvas.beginFill(<span class="number">0xaaaaff</span>)
+            canvas.drawPath(w.polygon())
+            elem.id = counter
+            elem.hitArea = polyToPIXIPoly w.polygon()
+            elem.position = <span class="keyword">new</span> PIXI.Point(<span class="number">0</span>,<span class="number">0</span>)
+            <span class="property">@wallOverlay</span>(elem, counter)
+            elem.addChild canvas
+            <span class="property">@wallOverlayLayer</span>.addChild elem
+            counter++
+            
+    renderConnectedWalls: ()-&gt;
+        <span class="property">@container</span>.clear()
+        <span class="property">@container</span>.lineStyle(<span class="number">10</span>,<span class="number">0xffffff</span>)
+        <span class="property">@container</span>.moveTo(<span class="property">@walls</span>[<span class="number">0</span>].A[<span class="number">0</span>],<span class="property">@walls</span>[<span class="number">0</span>].A[<span class="number">1</span>])
+        <span class="keyword">for</span> w <span class="keyword">in</span> <span class="property">@walls</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-9">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-9">&#182;</a>
+              </div>
+              <p>console.log &#39;doingthis/&#39;</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>            <span class="property">@container</span>.lineTo(w.B[<span class="number">0</span>], w.B[<span class="number">1</span>])
+
+    createInteractiveCornerCircles: ()-&gt;
+        counter = <span class="number">0</span>
+        <span class="keyword">for</span> corner <span class="keyword">in</span> <span class="property">@getCorners</span>()
+            ID = counter
+            elem = <span class="keyword">new</span> PIXI.DisplayObjectContainer()
+            elem.hitArea= <span class="keyword">new</span> PIXI.Circle(<span class="number">0</span>,<span class="number">0</span>,<span class="number">20</span>)
+            elem.position = <span class="keyword">new</span> PIXI.Point(corner.x,corner.y)
+            elem.corner = corner
+            <span class="property">@cornerCircle</span>(elem, ID)
+
+            canv = <span class="keyword">new</span> PIXI.Graphics()
+            canv.lineStyle(<span class="number">10</span>,<span class="number">0xff2288</span>)
+            canv.drawCircle(<span class="number">0</span>,<span class="number">0</span>,<span class="number">20</span>)
+            elem.addChild canv
+            <span class="property">@cornerLayer</span>.addChild elem
+            counter++
+            
+    updateCornerPosition: (oldP, newP) -&gt;
+        value = <span class="property">@corners</span>[<span class="string">"<span class="subst">#{oldP.x}</span>,<span class="subst">#{oldP.y}</span>"</span>]
+        <span class="keyword">delete</span> <span class="property">@corners</span>[<span class="string">"<span class="subst">#{oldP.x}</span>,<span class="subst">#{oldP.y}</span>"</span>]<span class="comment"># = null</span>
+        value.x = newP.x
+        value.y = newP.y
+        <span class="property">@corners</span>[<span class="string">"<span class="subst">#{newP.x}</span>,<span class="subst">#{newP.y}</span>"</span>] = value
+                
+    cornerCircle: (elem, id) -&gt;
+        elem.interactive = <span class="literal">true</span>
+        elem.<span class="function"><span class="title">mouseover</span></span> = =&gt; console.log <span class="string">'hiya corner '</span>,id
+        
+        elem.<span class="function"><span class="title">mousedown</span></span> = (data) =&gt;
+            <span class="property">@hasReleased</span> = <span class="literal">false</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-10">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-10">&#182;</a>
+              </div>
+              <p>console.log &#39;down&#39;,id</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>            elem.isDowned = <span class="literal">true</span>
+            elem.dx = elem.position.x - data.originalEvent.clientX
+            elem.dy = elem.position.y - data.originalEvent.clientY
+        elem.<span class="function"><span class="title">mouseup</span></span> = =&gt;
+            elem.isDowned = <span class="literal">false</span>
+        elem.<span class="function"><span class="title">mouseupoutside</span></span> = =&gt;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-11">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-11">&#182;</a>
+              </div>
+              <p>console.log &#39;like apples?&#39;,id</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>            elem.isDowned = <span class="literal">false</span>
+        elem.<span class="function"><span class="title">mousemove</span></span> = (data) =&gt;
+            <span class="keyword">if</span> elem.isDowned
+                newX = data.originalEvent.clientX + elem.dx
+                newY = data.originalEvent.clientY + elem.dy</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-12">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-12">&#182;</a>
+              </div>
+              <p>console.log elem.corner.edges</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-13">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-13">&#182;</a>
+              </div>
+              <p>now you should:
+get the correct wallcorner from the dictionary and all walls that use it.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>                <span class="keyword">for</span> wall <span class="keyword">in</span> elem.corner.edges
+                    <span class="keyword">if</span> wall.A[<span class="number">0</span>] <span class="keyword">is</span> elem.position.x <span class="keyword">and</span> wall.A[<span class="number">1</span>] <span class="keyword">is</span> elem.position.y
+                        wall.A[<span class="number">0</span>] = newX
+                        wall.A[<span class="number">1</span>] = newY
+                    <span class="keyword">if</span> wall.B[<span class="number">0</span>] <span class="keyword">is</span> elem.position.x <span class="keyword">and</span> wall.B[<span class="number">1</span>] <span class="keyword">is</span> elem.position.y
+                        wall.B[<span class="number">0</span>] = newX
+                        wall.B[<span class="number">1</span>] = newY
+                <span class="property">@updateCornerPosition</span>(elem.position,{x:newX,y:newY})
+                elem.position.x = newX
+                elem.position.y = newY
+
+                <span class="property">@renderConnectedWalls</span>()
+                <span class="property">@renderWallOverlays</span>()
+                <span class="property">@updateWallOverlays</span>()
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">Floorplan</span></span>
+    constructor: ()-&gt;
+        <span class="property">@walls</span> = []
+        <span class="property">@layer</span> = <span class="keyword">new</span> InteractiveLayer(<span class="property">@walls</span>)
+     
+    addWall: (p1, p2, thickness) -&gt;
+        <span class="property">@lastP</span> = p2
+        <span class="property">@lastThick</span> = thickness
+        wall = <span class="keyword">new</span> Wall(vec2.fromValues(p1.x,p1.y),vec2.fromValues(p2.x,p2.y),thickness)
+        <span class="property">@layer</span>.addWall(wall)
+        <span class="property">@walls</span>.push(wall)
+    wallTo: (p2) -&gt;
+        <span class="property">@addWall</span>(<span class="property">@lastP</span>, p2, <span class="property">@lastThick</span>)
+         
+    
+
+<span class="class"><span class="keyword">class</span> <span class="title">WallCorner</span></span>
+    constructor: (<span class="property">@x</span>,<span class="property">@y</span>) -&gt;
+        <span class="property">@edges</span> = []
+    addEdge : (edge) -&gt;
+        <span class="property">@edges</span>.push edge
+    getAdjacent: (fromEdge) -&gt;
+        (edge <span class="keyword">for</span> edge <span class="keyword">in</span> <span class="property">@edges</span> <span class="keyword">when</span> fromEdge <span class="keyword">isnt</span> edge)
+
+        
+        
+<span class="class"><span class="keyword">class</span> <span class="title">Wall</span></span>
+    constructor: (<span class="property">@A</span>, <span class="property">@B</span>, <span class="property">@thickness</span>) -&gt;
+    polygon: -&gt;
+        s1 = (<span class="keyword">new</span> WallEdge(<span class="property">@A</span>, <span class="property">@B</span>, <span class="property">@thickness</span>)).offset()
+        s2 = (<span class="keyword">new</span> WallEdge(<span class="property">@B</span>, <span class="property">@A</span>, <span class="property">@thickness</span>)).offset()
+        [s1.a[<span class="number">0</span>],s1.a[<span class="number">1</span>],s1.b[<span class="number">0</span>],s1.b[<span class="number">1</span>],s2.a[<span class="number">0</span>],s2.a[<span class="number">1</span>],s2.b[<span class="number">0</span>],s2.b[<span class="number">1</span>],s1.a[<span class="number">0</span>],s1.a[<span class="number">1</span>]]
+
+<span class="class"><span class="keyword">class</span> <span class="title">WallEdge</span></span>
+    constructor: (<span class="property">@A</span>, <span class="property">@B</span>, <span class="property">@thickness</span>) -&gt;
+
+    normal:-&gt;
+        d = vec2.create()
+        vec2.subtract(d, <span class="property">@A</span>, <span class="property">@B</span>)
+        vec2.normalize(d, d)
+        vec2.fromValues(-d[<span class="number">1</span>], d[<span class="number">0</span>])
+
+    angle: -&gt;
+        dx = <span class="property">@A</span>[<span class="number">0</span>] - <span class="property">@B</span>[<span class="number">0</span>]
+        dy = <span class="property">@A</span>[<span class="number">1</span>] - <span class="property">@B</span>[<span class="number">1</span>]
+        Math.atan2(dy, dx)*(<span class="number">180</span>/Math.PI)
+        
+    offset:-&gt;
+        n = <span class="property">@normal</span>()
+        t = <span class="property">@thickness</span> / <span class="number">2</span>
+        xa = <span class="property">@A</span>[<span class="number">0</span>] + n[<span class="number">0</span>] * t
+        ya = <span class="property">@A</span>[<span class="number">1</span>] + n[<span class="number">1</span>] * t
+        xb = <span class="property">@B</span>[<span class="number">0</span>] + n[<span class="number">0</span>] * t
+        yb = <span class="property">@B</span>[<span class="number">1</span>] + n[<span class="number">1</span>] * t
+        {a:vec2.fromValues(xa, ya), b:vec2.fromValues(xb, yb)}        
+
+
+<span class="function"><span class="title">animate</span></span> = -&gt;
+    stats.begin()
+    requestAnimFrame animate
+    renderer.render stage
+    stats.end()
+    
+stage = <span class="keyword">new</span> PIXI.Stage(<span class="number">0xff0000</span>)
+
+renderer = <span class="keyword">new</span> PIXI.WebGLRenderer(window.innerWidth, window.innerHeight, <span class="literal">null</span>, <span class="literal">false</span>, <span class="literal">true</span>)</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-14">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-14">&#182;</a>
+              </div>
+              <p>renderer = new PIXI.CanvasRenderer(window.innerWidth, window.innerHeight, null,false, false)</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>document.body.appendChild(renderer.view)
+
+stats = <span class="keyword">new</span> Stats()
+stats.setMode(<span class="number">0</span>)
+stats.domElement.style.position = <span class="string">'absolute'</span>
+stats.domElement.style.right = <span class="string">'300px'</span>
+stats.domElement.style.top = <span class="string">'0px'</span>
+document.body.appendChild(stats.domElement)
+
+
+
+graphics = <span class="keyword">new</span> PIXI.Graphics()
+floorplan = <span class="keyword">new</span> Floorplan(stage)
+
+p1 = {x:<span class="number">100</span>, y:<span class="number">100</span>}
+p2 = {x:<span class="number">300</span>, y:<span class="number">200</span>}
+p3 = {x:<span class="number">400</span>, y:<span class="number">220</span>}
+p4 = {x:<span class="number">100</span>, y:<span class="number">420</span>}
+
+thick = <span class="number">10</span>
+
+floorplan.addWall({x:<span class="number">100</span>,y:<span class="number">100</span>},{x:<span class="number">100</span>,y:<span class="number">200</span>},thick)
+floorplan.wallTo({x:<span class="number">300</span>,y:<span class="number">500</span>})
+floorplan.wallTo({x:<span class="number">500</span>,y:<span class="number">500</span>})
+floorplan.wallTo({x:<span class="number">600</span>,y:<span class="number">500</span>})
+floorplan.wallTo({x:<span class="number">700</span>,y:<span class="number">500</span>})
+floorplan.wallTo({x:<span class="number">100</span>,y:<span class="number">100</span>})
+
+graphics.lineStyle(thick,<span class="number">0x00ff00</span>)
+
+floorplan.layer.renderConnectedWalls()</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-15">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-15">&#182;</a>
+              </div>
+              <p>graphics.lineStyle(3,0x000000,0.5)
+graphics.beginFill(0xffffff, 0.5)
+floorplan.layer.renderWallOverlays()</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>floorplan.layer.createInteractiveCornerCircles()
+floorplan.layer.createInteractiveWallOverlays()
+graphics.addChild floorplan.layer.container</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-16">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-16">&#182;</a>
+              </div>
+              <p>graphics.drawPath(poly)</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>stage.addChild graphics</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-17">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-17">&#182;</a>
+              </div>
+              <p>renderer.render(stage)</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>requestAnimFrame( animate)</pre></div></div>
+            
+        </li>
+        
+    </ul>
+  </div>
+</body>
+</html>
