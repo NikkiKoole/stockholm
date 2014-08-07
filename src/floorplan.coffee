@@ -1,84 +1,67 @@
+# The newer Floorplan is properly documented
 
-class WallCorner
-    constructor: (@x, @y)->
-        @edges = []
-    addEdge : (edge) ->
-        @edges.push edge
-    getAdjacent: (fromEdge) ->
-        (edge for edge in @edges when fromEdge isnt edge)
-
-class WallEdge
-    constructor : (@corner1, @corner2, @thickness) ->
-    getOther : (corner) ->
-        if @sameCoords(corner, @corner1) then return @corner2
-        if @sameCoords(corner, @corner2) then return @corner1
-    sameCoords: (p1,p2) ->
-        (p1.x is p2.x and p1.y is p2.y)
-
-class WallGraph
-  constructor : ->
-    @_cornerMap = {}
-
-  getCorners : ->
-    v for k, v of @_cornerMap
-
-  addWall: (p1, p2, thickness) ->
-    corner1 = @_addCorner(p1.x, p1.y)
-    corner2 = @_addCorner(p2.x, p2.y)
-    edge = new WallEdge(corner1, corner2, thickness)
-    corner1.addEdge edge
-    corner2.addEdge edge
-
-  _addCorner: (x, y) ->
-    if @_cornerMap["#{x},#{y}"]
-      return @_cornerMap["#{x},#{y}"]
-    else
-      @_cornerMap["#{x},#{y}"] = new WallCorner(x,y)
-      return @_cornerMap["#{x},#{y}"]
-
-
-module.exports = window.Floorplan = class Floorplan
-    constructor: ->
-        @walls = new WallGraph()
-        @_lastUsedWallPoint = null
-        @_lastUsedThickness = null
-        @layer = new WallLayer()
+module.exports.Floorplan = class Floorplan
+    constructor: (@editor)->
+        @walls = []
+        @corners = []
         
-    addWall: (p1, p2, thick) ->
-        # should do alot of checking here
-        @_lastUsedWallPoint = p2
-        @_lastUsedThickness = thick
-        @walls.addWall(p1, p2, thick)
-
-    wallTo: (p2) ->
-        @addWall(@_lastUsedWallPoint, p2, @_lastUsedThickness)
-
-    getGraphics: (graph, graphics=new PIXI.Graphics())->
-        @layer.render(graph.getCorners(),graphics,0,0,1,0xffffff)       
-
-class WallLayer
-    constructor: ->
-
+    addWall: (point1, point2, thickness) ->
+        wall = {point1:point1, point2:point2, thickness:thickness}
+        @_addCorner(point1).walls.push(wall)
+        @_addCorner(point2).walls.push(wall)
+        @walls.push(wall)
+        wall
+                
+    moveWall: (wall, dx, dy) ->
+        #console.log wall
+        #will move both its corners
+        corner1 = @_getCornerAtPoint(wall.point1)
+        corner2 = @_getCornerAtPoint(wall.point2)
+        @moveCorner(corner1,dx,dy)
+        @moveCorner(corner2,dx,dy)
+        [corner1,corner2]
         
-    render: (corners, graphics, x, y, scale, color) ->
-        graphics.beginFill 0,0
-        graphics.lineStyle 1, color
-        for corner in corners
-          for edge1 in corner.edges
-            for edge2 in corner.edges
-              if edge1 isnt edge2 #and usedEdges.indexOf edge2 is -1
-                console.log 'adads'
-                drawn.push [edge1, corner]
-                drawn.push [corner, edge2]
-                graphics.moveTo((edge1.getOther(corner).x + x) * scale,(edge1.getOther(corner).y+ y)*scale)
-                WallLayer._setLineThickness edge1.thickness*scale, graphics, color
-                graphics.lineTo((corner.x+x)*scale, (corner.y+y)*scale)
-                WallLayer._setLineThickness edge2.thickness*scale, graphics, color
-                graphics.lineTo((edge2.getOther(corner).x+x)*scale,(edge2.getOther(corner).y+y)*scale)
-        graphics
+    moveCorner: (corner, dx, dy) ->
+        # find wallpoint (p1 or p2) that has this oldposition
+        touchedWalls = []
+        for w in corner.walls
+            if corner.x is w.point1.x and corner.y is w.point1.y
+                w.point1.x += dx
+                w.point1.y += dy
+                touchedWalls.push w
+            if corner.x is w.point2.x and corner.y is w.point2.y
+                w.point2.x += dx
+                w.point2.y += dy
+                touchedWalls.push w
+                
+        corner.x += dx
+        corner.y += dy
+        touchedWalls
+        
+    # private methods    
+    _getCornerAtPoint: (point) ->
+        #console.log point
+        for c in @corners
+            if c.x is point.x and c.y is point.y
+                return c
+        
+    _addCorner: (point) ->
+        already = @_getCornerAtPoint(point)
+        if already then return already
 
-    @_setLineThickness : (thickness, graphics, color) ->
-        if @lastThickness isnt thickness
-            @lastThickness = thickness
-            graphics.lineStyle @lastThickness, color
-        return
+        corner = {x:point.x,y:point.y,walls:[]}
+        @corners.push(corner)
+        # should inform the system we created & added a new corner
+        # so i need *some* way of communicating
+        # let's just use constructor refernce
+        if @editor then @editor.onAddedCorner(corner)
+        corner
+        
+    # probably unneeded methods. as in useful for testing.
+    getWall: (point1, point2) ->
+        for w in @walls
+            if (w.point1.x is point1.x and w.point1.y is point1.y and
+                w.point2.x is point2.x and w.point2.y is point2.y) or
+                (w.point2.x is point1.x and w.point2.y is point1.y and
+                w.point1.x is point2.x and w.point1.y is point2.y)
+                    return w
